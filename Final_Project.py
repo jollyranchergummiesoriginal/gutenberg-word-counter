@@ -65,7 +65,7 @@ def save_to_db(title, top_words):
         for word, freq in top_words:
             cur.execute("INSERT INTO Words (title, word, frequency) VALUES (?, ?, ?)", (title, word, freq))
         con.commit()
-    except:
+    except sqlite3.IntegrityError:
         pass  # If already in database, skip
 
 def search_local(title):
@@ -73,26 +73,31 @@ def search_local(title):
     Looks up a saved book by title.
     Returns a list of (word, frequency) or None if not found.
     """
-    cur.execute("SELECT word, frequency FROM Words WHERE title = ? ORDER BY frequency DESC", (title,))
+    cur.execute("SELECT word, frequency FROM Words WHERE LOWER(title) = LOWER(?) ORDER BY frequency DESC", (title,))
     return cur.fetchall()
 
 def search_title():
     """
-    When 'Search Title' button is clicked.
-    Looks in the database and displays results if found.
+    Called when Search button is clicked.
+    Finds title in database and shows saved word frequencies.
     """
     title = title_entry.get().strip()
     output.delete(1.0, END)
+
     if not title:
         output.insert(END, "Please enter a book title.")
         return
-    result = search_local(title)
-    if result:
-        output.insert(END, f"Top 10 words for '{title}':\n\n")
-        for word, freq in result:
-            output.insert(END, f"{word}: {freq}\n")
-    else:
-        output.insert(END, "Book not found in database.\nPaste a UTF-8 Plain Text link below to fetch it.")
+
+    try:
+        result = search_local(title)
+        if result:
+            output.insert(END, f"Top 10 words for '{title}':\n\n")
+            for word, freq in result:
+                output.insert(END, f"{word}: {freq}\n")
+        else:
+            output.insert(END, "Book not found in database.\nPaste a URL to fetch it.")
+    except Exception as e:
+        output.insert(END, f"An error occurred: {e}")
 
 def fetch_url():
     """
@@ -140,6 +145,9 @@ def fetch_url():
 
 
 def clear_fields():
+    """
+    Clears all input and output fields.
+    """
     title_entry.delete(0, END)
     url_entry.delete(0, END)
     output.delete(1.0, END)
@@ -176,5 +184,6 @@ output.pack(pady=10)
 Button(window, text="Clear", command=clear_fields, bg="#f44336", fg="white", font=("Helvetica", 10, "bold")).pack(pady=5)
 
 
+# Start GUI
 window.mainloop()
 con.close()
