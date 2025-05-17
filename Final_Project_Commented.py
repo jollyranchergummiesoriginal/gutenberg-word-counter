@@ -14,7 +14,7 @@ from urllib.request import urlopen
 import re
 
 # Set up SQLite database
-con = sqlite3.connect('web.db') # Connect to SQLite database file (create if it doesn't exist
+con = sqlite3.connect('web.db') # Connect to SQLite database file (create if it doesn't exist)
 cur = con.cursor() # Create a cursor to run SQL commands
 
 cur.execute("CREATE TABLE IF NOT EXISTS Books (title TEXT PRIMARY KEY)") # Books: stores unique book titles
