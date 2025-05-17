@@ -14,11 +14,11 @@ from urllib.request import urlopen
 import re
 
 # Set up SQLite database
-con = sqlite3.connect('web.db') # Connect to SQLite database file (create if it doesn't exist
-cur = con.cursor() # Create a cursor to run SQL commands
+con = sqlite3.connect('web.db')
+cur = con.cursor() 
 
-cur.execute("CREATE TABLE IF NOT EXISTS Books (title TEXT PRIMARY KEY)") # Books: stores unique book titles
-cur.execute("CREATE TABLE IF NOT EXISTS Words (title TEXT, word TEXT, frequency INTEGER)") # Words: stores word frequencies associated with each title
+cur.execute("CREATE TABLE IF NOT EXISTS Books (title TEXT PRIMARY KEY)") 
+cur.execute("CREATE TABLE IF NOT EXISTS Words (title TEXT, word TEXT, frequency INTEGER)") 
 con.commit()
 
 # Functions 
@@ -28,16 +28,16 @@ def clean_text(text):
     Removes punctuation and lowercases all words.
     Returns a list of words.
     """
-    text = re.sub(r'[^a-zA-Z\s]', '', text)  # remove punctuation
+    text = re.sub(r'[^a-zA-Z\s]', '', text)  
     text = text.lower()
-    return text.split() # split cleaned string into individual words
+    return text.split() 
 
 def count_top_10(words):
     """
     Counts word frequencies and returns the top 10
     for words with 4 or more letters.
     """
-    counts = {}
+    counts = {} 
     for word in words:
         if len(word) >= 4:
             if word in counts:
@@ -45,24 +45,22 @@ def count_top_10(words):
             else:
                 counts[word] = 1
 
-    # Convert dictionary into a list of (word, frequency) pairs
     word_list = list(counts.items())
 
-    # Sort by frequency using item index
     def sort_key(pair):
-        return pair[1]
-    word_list.sort(key=sort_key, reverse=True) # Sort list so the most frequent words come first
-
-    return word_list[:10] # return only the top 10 most frequent words
+        return pair[1] 
+    word_list.sort(key=sort_key, reverse=True)
+    
+    return word_list[:10] 
 
 def save_to_db(title, top_words):
     """
     Saves the book title and top 10 words into the database.
     """
     try:
-        cur.execute("INSERT INTO Books (title) VALUES (?)", (title,)) # attempt to insert the book title. SQLite uses ? placeholders to avoid SQL injection
+        cur.execute("INSERT INTO Books (title) VALUES (?)", (title,)) 
         for word, freq in top_words:
-            cur.execute("INSERT INTO Words (title, word, frequency) VALUES (?, ?, ?)", (title, word, freq)) # inserts each word and its frequency, attached to the same title
+            cur.execute("INSERT INTO Words (title, word, frequency) VALUES (?, ?, ?)", (title, word, freq)) 
         con.commit()
     except Exception as e:
         output.insert(END, f"An error occured: {e}")
@@ -72,7 +70,7 @@ def search_local(title):
     Looks up a saved book by title.
     Returns a list of (word, frequency) or None if not found.
     """
-    cur.execute("SELECT word, frequency FROM Words WHERE LOWER(title) = LOWER(?) ORDER BY frequency DESC", (title,)) # LOWER(title) = LOWER(?)- ignores capital vs lowercase
+    cur.execute("SELECT word, frequency FROM Words WHERE LOWER(title) = LOWER(?) ORDER BY frequency DESC", (title,))
     return cur.fetchall()
 
 def search_title():
@@ -80,23 +78,23 @@ def search_title():
     Called when Search button is clicked.
     Finds title in database and shows saved word frequencies.
     """
-    title = title_entry.get().strip() # get user input and remove extra spaces
-    output.delete(1.0, END) # clears output box before printing anything new
+    title = title_entry.get().strip() 
+    output.delete(1.0, END) 
 
     if not title:
-        output.insert(END, "Please enter a book title.") # if the title is blank, tell the user and stop
+        output.insert(END, "Please enter a book title.") 
         return
 
     try:
-        result = search_local(title) # call teh earlier function to get saved data
+        result = search_local(title) 
         if result:
             output.insert(END, f"Top 10 words for '{title}':\n\n")
             for word, freq in result:
-                output.insert(END, f"{word}: {freq}\n") # if results exist, print each word and its frequency to the GUI
+                output.insert(END, f"{word}: {freq}\n") 
         else:
-            output.insert(END, "Book not found in database.\nPaste a URL to fetch it.") # if no match, give instructions to use the URL 
+            output.insert(END, "Book not found in database.\nPaste a URL to fetch it.") 
     except Exception as e:
-        output.insert(END, f"An error occurred: {e}") # if something crasehs, show the error in the output box
+        output.insert(END, f"An error occurred: {e}")
 
 def fetch_url():
     """
@@ -105,48 +103,38 @@ def fetch_url():
     """
     url = url_entry.get().strip()
     title = title_entry.get().strip()
-    output.delete(1.0, END) # clears output area
+    output.delete(1.0, END)
 
     if not url:
-        output.insert(END, "Please paste a valid Project Gutenberg URL.") # warn user if URL is empty
+        output.insert(END, "Please paste a valid Project Gutenberg URL.")
         return
 
     try:
         response = urlopen(url)
-        text = response.read().decode('utf-8') # downloads the page and decodes it from bytes to readable text
+        text = response.read().decode('utf-8') 
     except Exception as e:
-        output.insert(END, "Failed to open or decode the URL.") # if fails, print error and stop
+        output.insert(END, "Failed to open or decode the URL.") 
         return
 
-    # Detect if it's HTML
-    is_html = "<html" in text.lower() # detects if the text is HTML 
+    is_html = "<html" in text.lower() 
 
     if is_html:
-        # Try to extract the title from the line with <strong>Title</strong>
-        # Searches for the book title in the HTML and uses it if the user didn't type one
         match = re.search(r'<strong>\s*Title\s*</strong>\s*:\s*(.*?)</p>', text, re.IGNORECASE)
         if match and not title:
             title = match.group(1).strip()
 
-        # Remove all HTML tags to get clean text
         text = re.sub(r'<[^>]+>', ' ', text)
 
-    # clean the text and find the most common words
     words = clean_text(text)
     top_words = count_top_10(words)
 
     if not title:
-        # if title not found, just use the filename from the URL
-        title = url.split("/")[-1]  # fallback
-
-    # print the results to the GUI output area
+        title = url.split("/")[-1] 
     output.insert(END, f"Top 10 words for '{title}':\n\n")
     for word, freq in top_words:
         output.insert(END, f"{word}: {freq}\n")
 
-    # save everything into the database
     save_to_db(title, top_words)
-
 
 def clear_fields():
     """
