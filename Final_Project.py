@@ -64,8 +64,8 @@ def save_to_db(title, top_words):
         for word, freq in top_words:
             cur.execute("INSERT INTO Words (title, word, frequency) VALUES (?, ?, ?)", (title, word, freq)) # inserts each word and its frequency, attached to the same title
         con.commit()
-    except sqlite3.IntegrityError:
-        output.insert(END, f"Error: The title '{title}' already exists in the database.\n")
+    except Exception as e:
+        output.insert(END, f"An error occured: {e}")
 
 def search_local(title):
     """
@@ -114,7 +114,7 @@ def fetch_url():
     try:
         response = urlopen(url)
         text = response.read().decode('utf-8') # downloads the page and decodes it from bytes to readable text
-    except:
+    except Exception as e:
         output.insert(END, "Failed to open or decode the URL.") # if fails, print error and stop
         return
 
